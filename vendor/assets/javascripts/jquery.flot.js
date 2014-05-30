@@ -2056,9 +2056,9 @@ Licensed under the MIT license.
                     ctx.beginPath();
                     xoff = yoff = 0;
                     if (axis.direction == "x")
-                        xoff = plotWidth + 10;
+                        xoff = plotWidth + 1;
                     else
-                        yoff = plotHeight + 10;
+                        yoff = plotHeight + 1;
 
                     if (ctx.lineWidth == 1) {
                         if (axis.direction == "x") {
@@ -2112,7 +2112,7 @@ Licensed under the MIT license.
                             y = Math.floor(y) + 0.5;
                     }
 
-                    ctx.moveTo(x, y);
+                    ctx.moveTo(x, y+10);
                     ctx.lineTo(x + xoff, y + yoff);
                 }
 
