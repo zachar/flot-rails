@@ -2056,9 +2056,9 @@ Licensed under the MIT license.
                     ctx.beginPath();
                     xoff = yoff = 0;
                     if (axis.direction == "x")
-                        xoff = plotWidth + 1;
+                        xoff = plotWidth + 10;
                     else
-                        yoff = plotHeight + 1;
+                        yoff = plotHeight + 10;
 
                     if (ctx.lineWidth == 1) {
                         if (axis.direction == "x") {
