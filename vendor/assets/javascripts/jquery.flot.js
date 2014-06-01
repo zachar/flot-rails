@@ -1943,184 +1943,12 @@ Licensed under the MIT license.
         function drawGrid() {
             var i, axes, bw, bc;
 
+			bw = options.grid.borderWidth;
+
             ctx.save();
             ctx.translate(plotOffset.left, plotOffset.top);
 
-            // draw markings
-            var markings = options.grid.markings;
-            if (markings) {
-                if ($.isFunction(markings)) {
-                    axes = plot.getAxes();
-                    // xmin etc. is backwards compatibility, to be
-                    // removed in the future
-                    axes.xmin = axes.xaxis.min;
-                    axes.xmax = axes.xaxis.max;
-                    axes.ymin = axes.yaxis.min;
-                    axes.ymax = axes.yaxis.max;
-
-                    markings = markings(axes);
-                }
-
-                for (i = 0; i < markings.length; ++i) {
-                    var m = markings[i],
-                        xrange = extractRange(m, "x"),
-                        yrange = extractRange(m, "y");
-
-                    // fill in missing
-                    if (xrange.from == null)
-                        xrange.from = xrange.axis.min;
-                    if (xrange.to == null)
-                        xrange.to = xrange.axis.max;
-                    if (yrange.from == null)
-                        yrange.from = yrange.axis.min;
-                    if (yrange.to == null)
-                        yrange.to = yrange.axis.max;
-
-                    // clip
-                    if (xrange.to < xrange.axis.min || xrange.from > xrange.axis.max ||
-                        yrange.to < yrange.axis.min || yrange.from > yrange.axis.max)
-                        continue;
-
-                    xrange.from = Math.max(xrange.from, xrange.axis.min);
-                    xrange.to = Math.min(xrange.to, xrange.axis.max);
-                    yrange.from = Math.max(yrange.from, yrange.axis.min);
-                    yrange.to = Math.min(yrange.to, yrange.axis.max);
-
-                    var xequal = xrange.from === xrange.to,
-                        yequal = yrange.from === yrange.to;
-
-                    if (xequal && yequal) {
-                        continue;
-                    }
-
-                    // then draw
-                    xrange.from = Math.floor(xrange.axis.p2c(xrange.from));
-                    xrange.to = Math.floor(xrange.axis.p2c(xrange.to));
-                    yrange.from = Math.floor(yrange.axis.p2c(yrange.from));
-                    yrange.to = Math.floor(yrange.axis.p2c(yrange.to));
-
-                    if (xequal || yequal) {
-                        var lineWidth = m.lineWidth || options.grid.markingsLineWidth,
-                            subPixel = lineWidth % 2 ? 0.5 : 0;
-                        ctx.beginPath();
-                        ctx.strokeStyle = m.color || options.grid.markingsColor;
-                        ctx.lineWidth = lineWidth;
-                        if (xequal) {
-                            ctx.moveTo(xrange.to + subPixel, yrange.from);
-                            ctx.lineTo(xrange.to + subPixel, yrange.to);
-                        } else {
-                            ctx.moveTo(xrange.from, yrange.to + subPixel);
-                            ctx.lineTo(xrange.to, yrange.to + subPixel);                            
-                        }
-                        ctx.stroke();
-                    } else {
-                        ctx.fillStyle = m.color || options.grid.markingsColor;
-                        ctx.fillRect(xrange.from, yrange.to,
-                                     xrange.to - xrange.from,
-                                     yrange.from - yrange.to);
-                    }
-                }
-            }
-
-            // draw the ticks
-            axes = allAxes();
-            bw = options.grid.borderWidth;
-
-            for (var j = 0; j < axes.length; ++j) {
-                var axis = axes[j], box = axis.box,
-                    t = axis.tickLength, x, y, xoff, yoff;
-                if (!axis.show || axis.ticks.length == 0)
-                    continue;
-
-                ctx.lineWidth = 1;
-
-                // find the edges
-                if (axis.direction == "x") {
-                    x = 0;
-                    if (t == "full")
-                        y = (axis.position == "top" ? 0 : plotHeight);
-                    else
-                        y = box.top - plotOffset.top + (axis.position == "top" ? box.height : 0);
-                }
-                else {
-                    y = 0;
-                    if (t == "full")
-                        x = (axis.position == "left" ? 0 : plotWidth);
-                    else
-                        x = box.left - plotOffset.left + (axis.position == "left" ? box.width : 0);
-                }
-
-                // draw tick bar
-                if (!axis.innermost) {
-                    ctx.strokeStyle = axis.options.color;
-                    ctx.beginPath();
-                    xoff = yoff = 0;
-                    if (axis.direction == "x")
-                        xoff = plotWidth + 1;
-                    else
-                        yoff = plotHeight + 1;
-
-                    if (ctx.lineWidth == 1) {
-                        if (axis.direction == "x") {
-                            y = Math.floor(y) + 0.5;
-                        } else {
-                            x = Math.floor(x) + 0.5;
-                        }
-                    }
-
-                    ctx.moveTo(x, y);
-                    ctx.lineTo(x + xoff, y + yoff);
-                    ctx.stroke();
-                }
-
-                // draw ticks
-
-                ctx.strokeStyle = axis.options.tickColor;
-
-                ctx.beginPath();
-                for (i = 0; i < axis.ticks.length; ++i) {
-                    var v = axis.ticks[i].v;
-
-                    xoff = yoff = 0;
-
-                    if (isNaN(v) || v < axis.min || v > axis.max
-                        // skip those lying on the axes if we got a border
-                        || (t == "full"
-                            && ((typeof bw == "object" && bw[axis.position] > 0) || bw > 0)
-                            && (v == axis.min || v == axis.max)))
-                        continue;
-
-                    if (axis.direction == "x") {
-                        x = axis.p2c(v);
-                        yoff = t == "full" ? -plotHeight : t;
-
-                        if (axis.position == "top")
-                            yoff = -yoff;
-                    }
-                    else {
-                        y = axis.p2c(v);
-                        xoff = t == "full" ? -plotWidth : t;
-
-                        if (axis.position == "left")
-                            xoff = -xoff;
-                    }
-
-                    if (ctx.lineWidth == 1) {
-                        if (axis.direction == "x")
-                            x = Math.floor(x) + 0.5;
-                        else
-                            y = Math.floor(y) + 0.5;
-                    }
-
-                    ctx.moveTo(x, y+10);
-                    ctx.lineTo(x + xoff, y + yoff);
-                }
-
-                ctx.stroke();
-            }
-
-
-            // draw border
+			// draw border
             if (bw) {
                 // If either borderWidth or borderColor is an object, then draw the border
                 // line by line instead of as one rectangle
@@ -2174,6 +2002,189 @@ Licensed under the MIT license.
                     ctx.strokeStyle = options.grid.borderColor;
                     ctx.strokeRect(-bw/2, -bw/2, plotWidth + bw, plotHeight + bw);
                 }
+            }            
+
+            // draw markings
+            var markings = options.grid.markings;
+            if (markings) {
+                if ($.isFunction(markings)) {
+                    axes = plot.getAxes();
+                    // xmin etc. is backwards compatibility, to be
+                    // removed in the future
+                    axes.xmin = axes.xaxis.min;
+                    axes.xmax = axes.xaxis.max;
+                    axes.ymin = axes.yaxis.min;
+                    axes.ymax = axes.yaxis.max;
+
+                    markings = markings(axes);
+                }
+
+                console.log(markings)
+                for (i = 0; i < markings.length; ++i) {
+                    var m = markings[i],
+                        xrange = extractRange(m, "x"),
+                        yrange = extractRange(m, "y");
+
+                    console.log(m.from);
+                    if (true) {
+    					console.log("marking: "+m.from);
+
+	                    // fill in missing
+	                    if (xrange.from == null)
+	                        xrange.from = xrange.axis.min;
+	                    if (xrange.to == null)
+	                        xrange.to = xrange.axis.max;
+	                    if (yrange.from == null)
+	                        yrange.from = yrange.axis.min;
+	                    if (yrange.to == null)
+	                        yrange.to = yrange.axis.max;
+
+	                    
+	                    yrange.from -= 10
+						yrange.to += 10
+
+	                    // clip
+	                    if (xrange.to < xrange.axis.min || xrange.from > xrange.axis.max ||
+	                        yrange.to < yrange.axis.min || yrange.from > yrange.axis.max)
+	                        continue;
+
+	                    xrange.from = Math.max(xrange.from, xrange.axis.min);
+	                    xrange.to = Math.min(xrange.to, xrange.axis.max);
+	                    yrange.from = Math.max(yrange.from, yrange.axis.min);
+	                    yrange.to = Math.min(yrange.to, yrange.axis.max);
+
+	                    var xequal = xrange.from === xrange.to,
+	                        yequal = yrange.from === yrange.to;
+
+	                    if (xequal && yequal) {
+	                        continue;
+	                    }
+
+	                    // then draw
+	                    xrange.from = Math.floor(xrange.axis.p2c(xrange.from));
+	                    xrange.to = Math.floor(xrange.axis.p2c(xrange.to));
+	                    yrange.from = Math.floor(yrange.axis.p2c(yrange.from));
+	                    yrange.to = Math.floor(yrange.axis.p2c(yrange.to));
+
+	                    if (xequal || yequal) {
+	                        var lineWidth = m.lineWidth || options.grid.markingsLineWidth,
+	                            subPixel = lineWidth % 2 ? 0.5 : 0;
+	                        ctx.beginPath();
+	                        ctx.strokeStyle = m.color || options.grid.markingsColor;
+	                        ctx.lineWidth = lineWidth;
+	                        if (xequal) {
+	                            ctx.moveTo(xrange.to + subPixel, yrange.from);
+	                            ctx.lineTo(xrange.to + subPixel, yrange.to);
+	                        } else {
+	                            ctx.moveTo(xrange.from, yrange.to + subPixel);
+	                            ctx.lineTo(xrange.to, yrange.to + subPixel);                            
+	                        }
+	                        ctx.stroke();
+	                    } else {
+	                        ctx.fillStyle = m.color || options.grid.markingsColor;
+	                        ctx.fillRect(xrange.from, yrange.to,
+	                                     xrange.to - xrange.from,
+	                                     yrange.from - yrange.to);
+	                    }
+	                }
+                }
+            }
+
+            // draw the ticks
+            axes = allAxes();
+            bw = options.grid.borderWidth;
+
+            for (var j = 0; j < axes.length; ++j) {
+                var axis = axes[j], box = axis.box,
+                    t = axis.tickLength, x, y, xoff, yoff;
+                if (!axis.show || axis.ticks.length == 0)
+                    continue;
+
+                ctx.lineWidth = 1;
+
+                // find the edges
+                if (axis.direction == "x") {
+                    x = 0;
+                    if (t == "full")
+                        y = (axis.position == "top" ? 0 : plotHeight);
+                    else
+                        y = box.top - plotOffset.top + (axis.position == "top" ? box.height : 0);
+                }
+                else {
+                    y = 0;
+                    if (t == "full")
+                        x = (axis.position == "left" ? 0 : plotWidth);
+                    else
+                        x = box.left - plotOffset.left + (axis.position == "left" ? box.width : 0);
+                }
+
+                // draw tick bar
+                if (!axis.innermost) {
+                    ctx.strokeStyle = axis.options.color;
+                    ctx.beginPath();
+                    xoff = yoff = 0;
+                    if (axis.direction == "x")
+                        xoff = plotWidth + 1;
+                    else
+                        yoff = plotHeight + 1;
+
+                    if (ctx.lineWidth == 1) {
+                        if (axis.direction == "x") {
+                            y = Math.floor(y) + 0.5;
+                        } else {
+                            x = Math.floor(x) + 0.5;
+                        }
+                    }
+
+                    ctx.moveTo(x, y-8);
+                    ctx.lineTo(x + xoff, y + yoff);
+                    ctx.stroke();
+                }
+
+                // draw ticks
+
+                ctx.strokeStyle = axis.options.tickColor;
+
+                ctx.beginPath();
+                for (i = 0; i < axis.ticks.length; ++i) {
+                    var v = axis.ticks[i].v;
+
+                    xoff = yoff = 0;
+
+                    if (isNaN(v) || v < axis.min || v > axis.max
+                        // skip those lying on the axes if we got a border
+                        || (t == "full"
+                            && ((typeof bw == "object" && bw[axis.position] > 0) || bw > 0)
+                            && (v == axis.min || v == axis.max)))
+                        continue;
+
+                    if (axis.direction == "x") {
+                        x = axis.p2c(v);
+                        yoff = t == "full" ? -plotHeight : t;
+
+                        if (axis.position == "top")
+                            yoff = -yoff;
+                    }
+                    else {
+                        y = axis.p2c(v);
+                        xoff = t == "full" ? -plotWidth : t;
+
+                        if (axis.position == "left")
+                            xoff = -xoff;
+                    }
+
+                    if (ctx.lineWidth == 1) {
+                        if (axis.direction == "x")
+                            x = Math.floor(x) + 0.5;
+                        else
+                            y = Math.floor(y) + 0.5;
+                    }
+
+                    ctx.moveTo(x, y+10);
+                    ctx.lineTo(x + xoff, y + yoff);
+                }
+
+                ctx.stroke();
             }
 
             ctx.restore();
