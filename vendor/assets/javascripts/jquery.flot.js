@@ -31,12 +31,55 @@ Licensed under the MIT license.
  */
 (function($){$.color={};$.color.make=function(r,g,b,a){var o={};o.r=r||0;o.g=g||0;o.b=b||0;o.a=a!=null?a:1;o.add=function(c,d){for(var i=0;i<c.length;++i)o[c.charAt(i)]+=d;return o.normalize()};o.scale=function(c,f){for(var i=0;i<c.length;++i)o[c.charAt(i)]*=f;return o.normalize()};o.toString=function(){if(o.a>=1){return"rgb("+[o.r,o.g,o.b].join(",")+")"}else{return"rgba("+[o.r,o.g,o.b,o.a].join(",")+")"}};o.normalize=function(){function clamp(min,value,max){return value<min?min:value>max?max:value}o.r=clamp(0,parseInt(o.r),255);o.g=clamp(0,parseInt(o.g),255);o.b=clamp(0,parseInt(o.b),255);o.a=clamp(0,o.a,1);return o};o.clone=function(){return $.color.make(o.r,o.b,o.g,o.a)};return o.normalize()};$.color.extract=function(elem,css){var c;do{c=elem.css(css).toLowerCase();if(c!=""&&c!="transparent")break;elem=elem.parent()}while(elem.length&&!$.nodeName(elem.get(0),"body"));if(c=="rgba(0, 0, 0, 0)")c="transparent";return $.color.parse(c)};$.color.parse=function(str){var res,m=$.color.make;if(res=/rgb\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*\)/.exec(str))return m(parseInt(res[1],10),parseInt(res[2],10),parseInt(res[3],10));if(res=/rgba\(\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]{1,3})\s*,\s*([0-9]+(?:\.[0-9]+)?)\s*\)/.exec(str))return m(parseInt(res[1],10),parseInt(res[2],10),parseInt(res[3],10),parseFloat(res[4]));if(res=/rgb\(\s*([0-9]+(?:\.[0-9]+)?)\%\s*,\s*([0-9]+(?:\.[0-9]+)?)\%\s*,\s*([0-9]+(?:\.[0-9]+)?)\%\s*\)/.exec(str))return m(parseFloat(res[1])*2.55,parseFloat(res[2])*2.55,parseFloat(res[3])*2.55);if(res=/rgba\(\s*([0-9]+(?:\.[0-9]+)?)\%\s*,\s*([0-9]+(?:\.[0-9]+)?)\%\s*,\s*([0-9]+(?:\.[0-9]+)?)\%\s*,\s*([0-9]+(?:\.[0-9]+)?)\s*\)/.exec(str))return m(parseFloat(res[1])*2.55,parseFloat(res[2])*2.55,parseFloat(res[3])*2.55,parseFloat(res[4]));if(res=/#([a-fA-F0-9]{2})([a-fA-F0-9]{2})([a-fA-F0-9]{2})/.exec(str))return m(parseInt(res[1],16),parseInt(res[2],16),parseInt(res[3],16));if(res=/#([a-fA-F0-9])([a-fA-F0-9])([a-fA-F0-9])/.exec(str))return m(parseInt(res[1]+res[1],16),parseInt(res[2]+res[2],16),parseInt(res[3]+res[3],16));var name=$.trim(str).toLowerCase();if(name=="transparent")return m(255,255,255,0);else{res=lookupColors[name]||[0,0,0];return m(res[0],res[1],res[2])}};var lookupColors={aqua:[0,255,255],azure:[240,255,255],beige:[245,245,220],black:[0,0,0],blue:[0,0,255],brown:[165,42,42],cyan:[0,255,255],darkblue:[0,0,139],darkcyan:[0,139,139],darkgrey:[169,169,169],darkgreen:[0,100,0],darkkhaki:[189,183,107],darkmagenta:[139,0,139],darkolivegreen:[85,107,47],darkorange:[255,140,0],darkorchid:[153,50,204],darkred:[139,0,0],darksalmon:[233,150,122],darkviolet:[148,0,211],fuchsia:[255,0,255],gold:[255,215,0],green:[0,128,0],indigo:[75,0,130],khaki:[240,230,140],lightblue:[173,216,230],lightcyan:[224,255,255],lightgreen:[144,238,144],lightgrey:[211,211,211],lightpink:[255,182,193],lightyellow:[255,255,224],lime:[0,255,0],magenta:[255,0,255],maroon:[128,0,0],navy:[0,0,128],olive:[128,128,0],orange:[255,165,0],pink:[255,192,203],purple:[128,0,128],violet:[128,0,128],red:[255,0,0],silver:[192,192,192],white:[255,255,255],yellow:[255,255,0]}})(jQuery);
 
+// canvas dashed line
+CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, toY, pattern) {
+  // Our growth rate for our line can be one of the following:
+  //   (+,+), (+,-), (-,+), (-,-)
+  // Because of this, our algorithm needs to understand if the x-coord and
+  // y-coord should be getting smaller or larger and properly cap the values
+  // based on (x,y).
+  var lt = function (a, b) { return a <= b; };
+  var gt = function (a, b) { return a >= b; };
+  var capmin = function (a, b) { return Math.min(a, b); };
+  var capmax = function (a, b) { return Math.max(a, b); };
+ 
+  var checkX = { thereYet: gt, cap: capmin };
+  var checkY = { thereYet: gt, cap: capmin };
+ 
+  if (fromY - toY > 0) {
+    checkY.thereYet = lt;
+    checkY.cap = capmax;
+  }
+  if (fromX - toX > 0) {
+    checkX.thereYet = lt;
+    checkX.cap = capmax;
+  }
+ 
+  this.moveTo(fromX, fromY);
+  var offsetX = fromX;
+  var offsetY = fromY;
+  var idx = 0, dash = true;
+  while (!(checkX.thereYet(offsetX, toX) && checkY.thereYet(offsetY, toY))) {
+    var ang = Math.atan2(toY - fromY, toX - fromX);
+    var len = pattern[idx];
+ 
+    offsetX = checkX.cap(toX, offsetX + (Math.cos(ang) * len));
+    offsetY = checkY.cap(toY, offsetY + (Math.sin(ang) * len));
+ 
+    if (dash) this.lineTo(offsetX, offsetY);
+    else this.moveTo(offsetX, offsetY);
+ 
+    idx = (idx + 1) % pattern.length;
+    dash = !dash;
+  }
+};
+
 // the actual Flot code
 (function($) {
 
-	// Cache the prototype hasOwnProperty for faster access
+  // Cache the prototype hasOwnProperty for faster access
 
-	var hasOwnProperty = Object.prototype.hasOwnProperty;
+  var hasOwnProperty = Object.prototype.hasOwnProperty;
 
     // A shim to provide 'detach' to jQuery versions prior to 1.4.  Using a DOM
     // operation produces the same effect as detach, i.e. removing the element
@@ -54,456 +97,456 @@ Licensed under the MIT license.
         };
     }
 
-	///////////////////////////////////////////////////////////////////////////
-	// The Canvas object is a wrapper around an HTML5 <canvas> tag.
-	//
-	// @constructor
-	// @param {string} cls List of classes to apply to the canvas.
-	// @param {element} container Element onto which to append the canvas.
-	//
-	// Requiring a container is a little iffy, but unfortunately canvas
-	// operations don't work unless the canvas is attached to the DOM.
+  ///////////////////////////////////////////////////////////////////////////
+  // The Canvas object is a wrapper around an HTML5 <canvas> tag.
+  //
+  // @constructor
+  // @param {string} cls List of classes to apply to the canvas.
+  // @param {element} container Element onto which to append the canvas.
+  //
+  // Requiring a container is a little iffy, but unfortunately canvas
+  // operations don't work unless the canvas is attached to the DOM.
 
-	function Canvas(cls, container) {
+  function Canvas(cls, container) {
 
-		var element = container.children("." + cls)[0];
+    var element = container.children("." + cls)[0];
 
-		if (element == null) {
+    if (element == null) {
 
-			element = document.createElement("canvas");
-			element.className = cls;
+      element = document.createElement("canvas");
+      element.className = cls;
 
-			$(element).css({ direction: "ltr", position: "absolute", left: 0, top: 0 })
-				.appendTo(container);
+      $(element).css({ direction: "ltr", position: "absolute", left: 0, top: 0 })
+        .appendTo(container);
 
-			// If HTML5 Canvas isn't available, fall back to [Ex|Flash]canvas
+      // If HTML5 Canvas isn't available, fall back to [Ex|Flash]canvas
 
-			if (!element.getContext) {
-				if (window.G_vmlCanvasManager) {
-					element = window.G_vmlCanvasManager.initElement(element);
-				} else {
-					throw new Error("Canvas is not available. If you're using IE with a fall-back such as Excanvas, then there's either a mistake in your conditional include, or the page has no DOCTYPE and is rendering in Quirks Mode.");
-				}
-			}
-		}
+      if (!element.getContext) {
+        if (window.G_vmlCanvasManager) {
+          element = window.G_vmlCanvasManager.initElement(element);
+        } else {
+          throw new Error("Canvas is not available. If you're using IE with a fall-back such as Excanvas, then there's either a mistake in your conditional include, or the page has no DOCTYPE and is rendering in Quirks Mode.");
+        }
+      }
+    }
 
-		this.element = element;
+    this.element = element;
 
-		var context = this.context = element.getContext("2d");
+    var context = this.context = element.getContext("2d");
 
-		// Determine the screen's ratio of physical to device-independent
-		// pixels.  This is the ratio between the canvas width that the browser
-		// advertises and the number of pixels actually present in that space.
+    // Determine the screen's ratio of physical to device-independent
+    // pixels.  This is the ratio between the canvas width that the browser
+    // advertises and the number of pixels actually present in that space.
 
-		// The iPhone 4, for example, has a device-independent width of 320px,
-		// but its screen is actually 640px wide.  It therefore has a pixel
-		// ratio of 2, while most normal devices have a ratio of 1.
+    // The iPhone 4, for example, has a device-independent width of 320px,
+    // but its screen is actually 640px wide.  It therefore has a pixel
+    // ratio of 2, while most normal devices have a ratio of 1.
 
-		var devicePixelRatio = window.devicePixelRatio || 1,
-			backingStoreRatio =
-				context.webkitBackingStorePixelRatio ||
-				context.mozBackingStorePixelRatio ||
-				context.msBackingStorePixelRatio ||
-				context.oBackingStorePixelRatio ||
-				context.backingStorePixelRatio || 1;
+    var devicePixelRatio = window.devicePixelRatio || 1,
+      backingStoreRatio =
+        context.webkitBackingStorePixelRatio ||
+        context.mozBackingStorePixelRatio ||
+        context.msBackingStorePixelRatio ||
+        context.oBackingStorePixelRatio ||
+        context.backingStorePixelRatio || 1;
 
-		this.pixelRatio = devicePixelRatio / backingStoreRatio;
+    this.pixelRatio = devicePixelRatio / backingStoreRatio;
 
-		// Size the canvas to match the internal dimensions of its container
+    // Size the canvas to match the internal dimensions of its container
 
-		this.resize(container.width(), container.height());
+    this.resize(container.width(), container.height());
 
-		// Collection of HTML div layers for text overlaid onto the canvas
+    // Collection of HTML div layers for text overlaid onto the canvas
 
-		this.textContainer = null;
-		this.text = {};
+    this.textContainer = null;
+    this.text = {};
 
-		// Cache of text fragments and metrics, so we can avoid expensively
-		// re-calculating them when the plot is re-rendered in a loop.
+    // Cache of text fragments and metrics, so we can avoid expensively
+    // re-calculating them when the plot is re-rendered in a loop.
 
-		this._textCache = {};
-	}
+    this._textCache = {};
+  }
 
-	// Resizes the canvas to the given dimensions.
-	//
-	// @param {number} width New width of the canvas, in pixels.
-	// @param {number} width New height of the canvas, in pixels.
+  // Resizes the canvas to the given dimensions.
+  //
+  // @param {number} width New width of the canvas, in pixels.
+  // @param {number} width New height of the canvas, in pixels.
 
-	Canvas.prototype.resize = function(width, height) {
+  Canvas.prototype.resize = function(width, height) {
 
-		if (width <= 0 || height <= 0) {
-			throw new Error("Invalid dimensions for plot, width = " + width + ", height = " + height);
-		}
+    if (width <= 0 || height <= 0) {
+      throw new Error("Invalid dimensions for plot, width = " + width + ", height = " + height);
+    }
 
-		var element = this.element,
-			context = this.context,
-			pixelRatio = this.pixelRatio;
+    var element = this.element,
+      context = this.context,
+      pixelRatio = this.pixelRatio;
 
-		// Resize the canvas, increasing its density based on the display's
-		// pixel ratio; basically giving it more pixels without increasing the
-		// size of its element, to take advantage of the fact that retina
-		// displays have that many more pixels in the same advertised space.
+    // Resize the canvas, increasing its density based on the display's
+    // pixel ratio; basically giving it more pixels without increasing the
+    // size of its element, to take advantage of the fact that retina
+    // displays have that many more pixels in the same advertised space.
 
-		// Resizing should reset the state (excanvas seems to be buggy though)
+    // Resizing should reset the state (excanvas seems to be buggy though)
 
-		if (this.width != width) {
-			element.width = width * pixelRatio;
-			element.style.width = width + "px";
-			this.width = width;
-		}
+    if (this.width != width) {
+      element.width = width * pixelRatio;
+      element.style.width = width + "px";
+      this.width = width;
+    }
 
-		if (this.height != height) {
-			element.height = height * pixelRatio;
-			element.style.height = height + "px";
-			this.height = height;
-		}
-
-		// Save the context, so we can reset in case we get replotted.  The
-		// restore ensure that we're really back at the initial state, and
-		// should be safe even if we haven't saved the initial state yet.
-
-		context.restore();
-		context.save();
-
-		// Scale the coordinate space to match the display density; so even though we
-		// may have twice as many pixels, we still want lines and other drawing to
-		// appear at the same size; the extra pixels will just make them crisper.
-
-		context.scale(pixelRatio, pixelRatio);
-	};
-
-	// Clears the entire canvas area, not including any overlaid HTML text
-
-	Canvas.prototype.clear = function() {
-		this.context.clearRect(0, 0, this.width, this.height);
-	};
-
-	// Finishes rendering the canvas, including managing the text overlay.
-
-	Canvas.prototype.render = function() {
-
-		var cache = this._textCache;
-
-		// For each text layer, add elements marked as active that haven't
-		// already been rendered, and remove those that are no longer active.
-
-		for (var layerKey in cache) {
-			if (hasOwnProperty.call(cache, layerKey)) {
-
-				var layer = this.getTextLayer(layerKey),
-					layerCache = cache[layerKey];
-
-				layer.hide();
-
-				for (var styleKey in layerCache) {
-					if (hasOwnProperty.call(layerCache, styleKey)) {
-						var styleCache = layerCache[styleKey];
-						for (var key in styleCache) {
-							if (hasOwnProperty.call(styleCache, key)) {
-
-								var positions = styleCache[key].positions;
-
-								for (var i = 0, position; position = positions[i]; i++) {
-									if (position.active) {
-										if (!position.rendered) {
-											layer.append(position.element);
-											position.rendered = true;
-										}
-									} else {
-										positions.splice(i--, 1);
-										if (position.rendered) {
-											position.element.detach();
-										}
-									}
-								}
-
-								if (positions.length == 0) {
-									delete styleCache[key];
-								}
-							}
-						}
-					}
-				}
-
-				layer.show();
-			}
-		}
-	};
-
-	// Creates (if necessary) and returns the text overlay container.
-	//
-	// @param {string} classes String of space-separated CSS classes used to
-	//     uniquely identify the text layer.
-	// @return {object} The jQuery-wrapped text-layer div.
-
-	Canvas.prototype.getTextLayer = function(classes) {
-
-		var layer = this.text[classes];
-
-		// Create the text layer if it doesn't exist
-
-		if (layer == null) {
-
-			// Create the text layer container, if it doesn't exist
-
-			if (this.textContainer == null) {
-				this.textContainer = $("<div class='flot-text'></div>")
-					.css({
-						position: "absolute",
-						top: 0,
-						left: 0,
-						bottom: 0,
-						right: 0,
-						'font-size': "smaller",
-						color: "#545454"
-					})
-					.insertAfter(this.element);
-			}
-
-			layer = this.text[classes] = $("<div></div>")
-				.addClass(classes)
-				.css({
-					position: "absolute",
-					top: 0,
-					left: 0,
-					bottom: 0,
-					right: 0
-				})
-				.appendTo(this.textContainer);
-		}
-
-		return layer;
-	};
-
-	// Creates (if necessary) and returns a text info object.
-	//
-	// The object looks like this:
-	//
-	// {
-	//     width: Width of the text's wrapper div.
-	//     height: Height of the text's wrapper div.
-	//     element: The jQuery-wrapped HTML div containing the text.
-	//     positions: Array of positions at which this text is drawn.
-	// }
-	//
-	// The positions array contains objects that look like this:
-	//
-	// {
-	//     active: Flag indicating whether the text should be visible.
-	//     rendered: Flag indicating whether the text is currently visible.
-	//     element: The jQuery-wrapped HTML div containing the text.
-	//     x: X coordinate at which to draw the text.
-	//     y: Y coordinate at which to draw the text.
-	// }
-	//
-	// Each position after the first receives a clone of the original element.
-	//
-	// The idea is that that the width, height, and general 'identity' of the
-	// text is constant no matter where it is placed; the placements are a
-	// secondary property.
-	//
-	// Canvas maintains a cache of recently-used text info objects; getTextInfo
-	// either returns the cached element or creates a new entry.
-	//
-	// @param {string} layer A string of space-separated CSS classes uniquely
-	//     identifying the layer containing this text.
-	// @param {string} text Text string to retrieve info for.
-	// @param {(string|object)=} font Either a string of space-separated CSS
-	//     classes or a font-spec object, defining the text's font and style.
-	// @param {number=} angle Angle at which to rotate the text, in degrees.
-	//     Angle is currently unused, it will be implemented in the future.
-	// @param {number=} width Maximum width of the text before it wraps.
-	// @return {object} a text info object.
-
-	Canvas.prototype.getTextInfo = function(layer, text, font, angle, width) {
-
-		var textStyle, layerCache, styleCache, info;
-
-		// Cast the value to a string, in case we were given a number or such
-
-		text = "" + text;
-
-		// If the font is a font-spec object, generate a CSS font definition
-
-		if (typeof font === "object") {
-			textStyle = font.style + " " + font.variant + " " + font.weight + " " + font.size + "px/" + font.lineHeight + "px " + font.family;
-		} else {
-			textStyle = font;
-		}
-
-		// Retrieve (or create) the cache for the text's layer and styles
-
-		layerCache = this._textCache[layer];
-
-		if (layerCache == null) {
-			layerCache = this._textCache[layer] = {};
-		}
-
-		styleCache = layerCache[textStyle];
-
-		if (styleCache == null) {
-			styleCache = layerCache[textStyle] = {};
-		}
-
-		info = styleCache[text];
-
-		// If we can't find a matching element in our cache, create a new one
-
-		if (info == null) {
-
-			var element = $("<div></div>").html(text)
-				.css({
-					position: "absolute",
-					'max-width': width,
-					top: -9999
-				})
-				.appendTo(this.getTextLayer(layer));
-
-			if (typeof font === "object") {
-				element.css({
-					font: textStyle,
-					color: font.color
-				});
-			} else if (typeof font === "string") {
-				element.addClass(font);
-			}
-
-			info = styleCache[text] = {
-				width: element.outerWidth(true),
-				height: element.outerHeight(true),
-				element: element,
-				positions: []
-			};
-
-			element.detach();
-		}
-
-		return info;
-	};
-
-	// Adds a text string to the canvas text overlay.
-	//
-	// The text isn't drawn immediately; it is marked as rendering, which will
-	// result in its addition to the canvas on the next render pass.
-	//
-	// @param {string} layer A string of space-separated CSS classes uniquely
-	//     identifying the layer containing this text.
-	// @param {number} x X coordinate at which to draw the text.
-	// @param {number} y Y coordinate at which to draw the text.
-	// @param {string} text Text string to draw.
-	// @param {(string|object)=} font Either a string of space-separated CSS
-	//     classes or a font-spec object, defining the text's font and style.
-	// @param {number=} angle Angle at which to rotate the text, in degrees.
-	//     Angle is currently unused, it will be implemented in the future.
-	// @param {number=} width Maximum width of the text before it wraps.
-	// @param {string=} halign Horizontal alignment of the text; either "left",
-	//     "center" or "right".
-	// @param {string=} valign Vertical alignment of the text; either "top",
-	//     "middle" or "bottom".
-
-	Canvas.prototype.addText = function(layer, x, y, text, font, angle, width, halign, valign) {
-
-		var info = this.getTextInfo(layer, text, font, angle, width),
-			positions = info.positions;
-
-		// Tweak the div's position to match the text's alignment
-
-		if (halign == "center") {
-			x -= info.width / 2;
-		} else if (halign == "right") {
-			x -= info.width;
-		}
-
-		if (valign == "middle") {
-			y -= info.height / 2;
-		} else if (valign == "bottom") {
-			y -= info.height;
-		}
-
-		// Determine whether this text already exists at this position.
-		// If so, mark it for inclusion in the next render pass.
-
-		for (var i = 0, position; position = positions[i]; i++) {
-			if (position.x == x && position.y == y) {
-				position.active = true;
-				return;
-			}
-		}
-
-		// If the text doesn't exist at this position, create a new entry
-
-		// For the very first position we'll re-use the original element,
-		// while for subsequent ones we'll clone it.
-
-		position = {
-			active: true,
-			rendered: false,
-			element: positions.length ? info.element.clone() : info.element,
-			x: x,
-			y: y
-		};
-
-		positions.push(position);
-
-		// Move the element to its final position within the container
-
-		position.element.css({
-			top: Math.round(y),
-			left: Math.round(x),
-			'text-align': halign	// In case the text wraps
-		});
-	};
-
-	// Removes one or more text strings from the canvas text overlay.
-	//
-	// If no parameters are given, all text within the layer is removed.
-	//
-	// Note that the text is not immediately removed; it is simply marked as
-	// inactive, which will result in its removal on the next render pass.
-	// This avoids the performance penalty for 'clear and redraw' behavior,
-	// where we potentially get rid of all text on a layer, but will likely
-	// add back most or all of it later, as when redrawing axes, for example.
-	//
-	// @param {string} layer A string of space-separated CSS classes uniquely
-	//     identifying the layer containing this text.
-	// @param {number=} x X coordinate of the text.
-	// @param {number=} y Y coordinate of the text.
-	// @param {string=} text Text string to remove.
-	// @param {(string|object)=} font Either a string of space-separated CSS
-	//     classes or a font-spec object, defining the text's font and style.
-	// @param {number=} angle Angle at which the text is rotated, in degrees.
-	//     Angle is currently unused, it will be implemented in the future.
-
-	Canvas.prototype.removeText = function(layer, x, y, text, font, angle) {
-		if (text == null) {
-			var layerCache = this._textCache[layer];
-			if (layerCache != null) {
-				for (var styleKey in layerCache) {
-					if (hasOwnProperty.call(layerCache, styleKey)) {
-						var styleCache = layerCache[styleKey];
-						for (var key in styleCache) {
-							if (hasOwnProperty.call(styleCache, key)) {
-								var positions = styleCache[key].positions;
-								for (var i = 0, position; position = positions[i]; i++) {
-									position.active = false;
-								}
-							}
-						}
-					}
-				}
-			}
-		} else {
-			var positions = this.getTextInfo(layer, text, font, angle).positions;
-			for (var i = 0, position; position = positions[i]; i++) {
-				if (position.x == x && position.y == y) {
-					position.active = false;
-				}
-			}
-		}
-	};
-
-	///////////////////////////////////////////////////////////////////////////
-	// The top-level container for the entire plot.
+    if (this.height != height) {
+      element.height = height * pixelRatio;
+      element.style.height = height + "px";
+      this.height = height;
+    }
+
+    // Save the context, so we can reset in case we get replotted.  The
+    // restore ensure that we're really back at the initial state, and
+    // should be safe even if we haven't saved the initial state yet.
+
+    context.restore();
+    context.save();
+
+    // Scale the coordinate space to match the display density; so even though we
+    // may have twice as many pixels, we still want lines and other drawing to
+    // appear at the same size; the extra pixels will just make them crisper.
+
+    context.scale(pixelRatio, pixelRatio);
+  };
+
+  // Clears the entire canvas area, not including any overlaid HTML text
+
+  Canvas.prototype.clear = function() {
+    this.context.clearRect(0, 0, this.width, this.height);
+  };
+
+  // Finishes rendering the canvas, including managing the text overlay.
+
+  Canvas.prototype.render = function() {
+
+    var cache = this._textCache;
+
+    // For each text layer, add elements marked as active that haven't
+    // already been rendered, and remove those that are no longer active.
+
+    for (var layerKey in cache) {
+      if (hasOwnProperty.call(cache, layerKey)) {
+
+        var layer = this.getTextLayer(layerKey),
+          layerCache = cache[layerKey];
+
+        layer.hide();
+
+        for (var styleKey in layerCache) {
+          if (hasOwnProperty.call(layerCache, styleKey)) {
+            var styleCache = layerCache[styleKey];
+            for (var key in styleCache) {
+              if (hasOwnProperty.call(styleCache, key)) {
+
+                var positions = styleCache[key].positions;
+
+                for (var i = 0, position; position = positions[i]; i++) {
+                  if (position.active) {
+                    if (!position.rendered) {
+                      layer.append(position.element);
+                      position.rendered = true;
+                    }
+                  } else {
+                    positions.splice(i--, 1);
+                    if (position.rendered) {
+                      position.element.detach();
+                    }
+                  }
+                }
+
+                if (positions.length == 0) {
+                  delete styleCache[key];
+                }
+              }
+            }
+          }
+        }
+
+        layer.show();
+      }
+    }
+  };
+
+  // Creates (if necessary) and returns the text overlay container.
+  //
+  // @param {string} classes String of space-separated CSS classes used to
+  //     uniquely identify the text layer.
+  // @return {object} The jQuery-wrapped text-layer div.
+
+  Canvas.prototype.getTextLayer = function(classes) {
+
+    var layer = this.text[classes];
+
+    // Create the text layer if it doesn't exist
+
+    if (layer == null) {
+
+      // Create the text layer container, if it doesn't exist
+
+      if (this.textContainer == null) {
+        this.textContainer = $("<div class='flot-text'></div>")
+          .css({
+            position: "absolute",
+            top: 0,
+            left: 0,
+            bottom: 0,
+            right: 0,
+            'font-size': "smaller",
+            color: "#545454"
+          })
+          .insertAfter(this.element);
+      }
+
+      layer = this.text[classes] = $("<div></div>")
+        .addClass(classes)
+        .css({
+          position: "absolute",
+          top: 0,
+          left: 0,
+          bottom: 0,
+          right: 0
+        })
+        .appendTo(this.textContainer);
+    }
+
+    return layer;
+  };
+
+  // Creates (if necessary) and returns a text info object.
+  //
+  // The object looks like this:
+  //
+  // {
+  //     width: Width of the text's wrapper div.
+  //     height: Height of the text's wrapper div.
+  //     element: The jQuery-wrapped HTML div containing the text.
+  //     positions: Array of positions at which this text is drawn.
+  // }
+  //
+  // The positions array contains objects that look like this:
+  //
+  // {
+  //     active: Flag indicating whether the text should be visible.
+  //     rendered: Flag indicating whether the text is currently visible.
+  //     element: The jQuery-wrapped HTML div containing the text.
+  //     x: X coordinate at which to draw the text.
+  //     y: Y coordinate at which to draw the text.
+  // }
+  //
+  // Each position after the first receives a clone of the original element.
+  //
+  // The idea is that that the width, height, and general 'identity' of the
+  // text is constant no matter where it is placed; the placements are a
+  // secondary property.
+  //
+  // Canvas maintains a cache of recently-used text info objects; getTextInfo
+  // either returns the cached element or creates a new entry.
+  //
+  // @param {string} layer A string of space-separated CSS classes uniquely
+  //     identifying the layer containing this text.
+  // @param {string} text Text string to retrieve info for.
+  // @param {(string|object)=} font Either a string of space-separated CSS
+  //     classes or a font-spec object, defining the text's font and style.
+  // @param {number=} angle Angle at which to rotate the text, in degrees.
+  //     Angle is currently unused, it will be implemented in the future.
+  // @param {number=} width Maximum width of the text before it wraps.
+  // @return {object} a text info object.
+
+  Canvas.prototype.getTextInfo = function(layer, text, font, angle, width) {
+
+    var textStyle, layerCache, styleCache, info;
+
+    // Cast the value to a string, in case we were given a number or such
+
+    text = "" + text;
+
+    // If the font is a font-spec object, generate a CSS font definition
+
+    if (typeof font === "object") {
+      textStyle = font.style + " " + font.variant + " " + font.weight + " " + font.size + "px/" + font.lineHeight + "px " + font.family;
+    } else {
+      textStyle = font;
+    }
+
+    // Retrieve (or create) the cache for the text's layer and styles
+
+    layerCache = this._textCache[layer];
+
+    if (layerCache == null) {
+      layerCache = this._textCache[layer] = {};
+    }
+
+    styleCache = layerCache[textStyle];
+
+    if (styleCache == null) {
+      styleCache = layerCache[textStyle] = {};
+    }
+
+    info = styleCache[text];
+
+    // If we can't find a matching element in our cache, create a new one
+
+    if (info == null) {
+
+      var element = $("<div></div>").html(text)
+        .css({
+          position: "absolute",
+          'max-width': width,
+          top: -9999
+        })
+        .appendTo(this.getTextLayer(layer));
+
+      if (typeof font === "object") {
+        element.css({
+          font: textStyle,
+          color: font.color
+        });
+      } else if (typeof font === "string") {
+        element.addClass(font);
+      }
+
+      info = styleCache[text] = {
+        width: element.outerWidth(true),
+        height: element.outerHeight(true),
+        element: element,
+        positions: []
+      };
+
+      element.detach();
+    }
+
+    return info;
+  };
+
+  // Adds a text string to the canvas text overlay.
+  //
+  // The text isn't drawn immediately; it is marked as rendering, which will
+  // result in its addition to the canvas on the next render pass.
+  //
+  // @param {string} layer A string of space-separated CSS classes uniquely
+  //     identifying the layer containing this text.
+  // @param {number} x X coordinate at which to draw the text.
+  // @param {number} y Y coordinate at which to draw the text.
+  // @param {string} text Text string to draw.
+  // @param {(string|object)=} font Either a string of space-separated CSS
+  //     classes or a font-spec object, defining the text's font and style.
+  // @param {number=} angle Angle at which to rotate the text, in degrees.
+  //     Angle is currently unused, it will be implemented in the future.
+  // @param {number=} width Maximum width of the text before it wraps.
+  // @param {string=} halign Horizontal alignment of the text; either "left",
+  //     "center" or "right".
+  // @param {string=} valign Vertical alignment of the text; either "top",
+  //     "middle" or "bottom".
+
+  Canvas.prototype.addText = function(layer, x, y, text, font, angle, width, halign, valign) {
+
+    var info = this.getTextInfo(layer, text, font, angle, width),
+      positions = info.positions;
+
+    // Tweak the div's position to match the text's alignment
+
+    if (halign == "center") {
+      x -= info.width / 2;
+    } else if (halign == "right") {
+      x -= info.width;
+    }
+
+    if (valign == "middle") {
+      y -= info.height / 2;
+    } else if (valign == "bottom") {
+      y -= info.height;
+    }
+
+    // Determine whether this text already exists at this position.
+    // If so, mark it for inclusion in the next render pass.
+
+    for (var i = 0, position; position = positions[i]; i++) {
+      if (position.x == x && position.y == y) {
+        position.active = true;
+        return;
+      }
+    }
+
+    // If the text doesn't exist at this position, create a new entry
+
+    // For the very first position we'll re-use the original element,
+    // while for subsequent ones we'll clone it.
+
+    position = {
+      active: true,
+      rendered: false,
+      element: positions.length ? info.element.clone() : info.element,
+      x: x,
+      y: y
+    };
+
+    positions.push(position);
+
+    // Move the element to its final position within the container
+
+    position.element.css({
+      top: Math.round(y),
+      left: Math.round(x),
+      'text-align': halign  // In case the text wraps
+    });
+  };
+
+  // Removes one or more text strings from the canvas text overlay.
+  //
+  // If no parameters are given, all text within the layer is removed.
+  //
+  // Note that the text is not immediately removed; it is simply marked as
+  // inactive, which will result in its removal on the next render pass.
+  // This avoids the performance penalty for 'clear and redraw' behavior,
+  // where we potentially get rid of all text on a layer, but will likely
+  // add back most or all of it later, as when redrawing axes, for example.
+  //
+  // @param {string} layer A string of space-separated CSS classes uniquely
+  //     identifying the layer containing this text.
+  // @param {number=} x X coordinate of the text.
+  // @param {number=} y Y coordinate of the text.
+  // @param {string=} text Text string to remove.
+  // @param {(string|object)=} font Either a string of space-separated CSS
+  //     classes or a font-spec object, defining the text's font and style.
+  // @param {number=} angle Angle at which the text is rotated, in degrees.
+  //     Angle is currently unused, it will be implemented in the future.
+
+  Canvas.prototype.removeText = function(layer, x, y, text, font, angle) {
+    if (text == null) {
+      var layerCache = this._textCache[layer];
+      if (layerCache != null) {
+        for (var styleKey in layerCache) {
+          if (hasOwnProperty.call(layerCache, styleKey)) {
+            var styleCache = layerCache[styleKey];
+            for (var key in styleCache) {
+              if (hasOwnProperty.call(styleCache, key)) {
+                var positions = styleCache[key].positions;
+                for (var i = 0, position; position = positions[i]; i++) {
+                  position.active = false;
+                }
+              }
+            }
+          }
+        }
+      }
+    } else {
+      var positions = this.getTextInfo(layer, text, font, angle).positions;
+      for (var i = 0, position; position = positions[i]; i++) {
+        if (position.x == x && position.y == y) {
+          position.active = false;
+        }
+      }
+    }
+  };
+
+  ///////////////////////////////////////////////////////////////////////////
+  // The top-level container for the entire plot.
 
     function Plot(placeholder, data_, options_, plugins) {
         // data is on the form:
@@ -692,8 +735,8 @@ Licensed under the MIT license.
             plot = null;
         };
         plot.resize = function () {
-        	var width = placeholder.width(),
-        		height = placeholder.height();
+          var width = placeholder.width(),
+            height = placeholder.height();
             surface.resize(width, height);
             overlay.resize(width, height);
         };
@@ -743,7 +786,7 @@ Licensed under the MIT license.
             // not expected behavior; avoid it by replacing them here.
 
             if (opts && opts.colors) {
-            	options.colors = opts.colors;
+              options.colors = opts.colors;
             }
 
             if (options.xaxis.color == null)
@@ -1758,21 +1801,21 @@ Licensed under the MIT license.
                     return ticks;
                 };
 
-				axis.tickFormatter = function (value, axis) {
+        axis.tickFormatter = function (value, axis) {
 
-					var factor = axis.tickDecimals ? Math.pow(10, axis.tickDecimals) : 1;
-					var formatted = "" + Math.round(value * factor) / factor;
+          var factor = axis.tickDecimals ? Math.pow(10, axis.tickDecimals) : 1;
+          var formatted = "" + Math.round(value * factor) / factor;
 
-					// If tickDecimals was specified, ensure that we have exactly that
-					// much precision; otherwise default to the value's own precision.
+          // If tickDecimals was specified, ensure that we have exactly that
+          // much precision; otherwise default to the value's own precision.
 
-					if (axis.tickDecimals != null) {
-						var decimal = formatted.indexOf(".");
-						var precision = decimal == -1 ? 0 : formatted.length - decimal - 1;
-						if (precision < axis.tickDecimals) {
-							return (precision ? formatted : formatted + ".") + ("" + factor).substr(1, axis.tickDecimals - precision);
-						}
-					}
+          if (axis.tickDecimals != null) {
+            var decimal = formatted.indexOf(".");
+            var precision = decimal == -1 ? 0 : formatted.length - decimal - 1;
+            if (precision < axis.tickDecimals) {
+              return (precision ? formatted : formatted + ".") + ("" + factor).substr(1, axis.tickDecimals - precision);
+            }
+          }
 
                     return formatted;
                 };
@@ -1941,154 +1984,12 @@ Licensed under the MIT license.
         }
 
         function drawGrid() {
-            var i, axes, bw, bc;
+            var i, axes, bw, bc, gridOverflow = 10;
 
-			bw = options.grid.borderWidth;
+            bw = options.grid.borderWidth;
 
-            ctx.save();
-            ctx.translate(plotOffset.left, plotOffset.top);
-
-			// draw border
-            if (bw) {
-                // If either borderWidth or borderColor is an object, then draw the border
-                // line by line instead of as one rectangle
-                bc = options.grid.borderColor;
-                if(typeof bw == "object" || typeof bc == "object") {
-                    if (typeof bw !== "object") {
-                        bw = {top: bw, right: bw, bottom: bw, left: bw};
-                    }
-                    if (typeof bc !== "object") {
-                        bc = {top: bc, right: bc, bottom: bc, left: bc};
-                    }
-
-                    if (bw.top > 0) {
-                        ctx.strokeStyle = bc.top;
-                        ctx.lineWidth = bw.top;
-                        ctx.beginPath();
-                        ctx.moveTo(0 - bw.left, 0 - bw.top/2);
-                        ctx.lineTo(plotWidth, 0 - bw.top/2);
-                        ctx.stroke();
-                    }
-
-                    if (bw.right > 0) {
-                        ctx.strokeStyle = bc.right;
-                        ctx.lineWidth = bw.right;
-                        ctx.beginPath();
-                        ctx.moveTo(plotWidth + bw.right / 2, 0 - bw.top);
-                        ctx.lineTo(plotWidth + bw.right / 2, plotHeight);
-                        ctx.stroke();
-                    }
-
-                    if (bw.bottom > 0) {
-                        ctx.strokeStyle = bc.bottom;
-                        ctx.lineWidth = bw.bottom;
-                        ctx.beginPath();
-                        ctx.moveTo(plotWidth + bw.right, plotHeight + bw.bottom / 2);
-                        ctx.lineTo(0, plotHeight + bw.bottom / 2);
-                        ctx.stroke();
-                    }
-
-                    if (bw.left > 0) {
-                        ctx.strokeStyle = bc.left;
-                        ctx.lineWidth = bw.left;
-                        ctx.beginPath();
-                        ctx.moveTo(0 - bw.left/2, plotHeight + bw.bottom);
-                        ctx.lineTo(0- bw.left/2, 0);
-                        ctx.stroke();
-                    }
-                }
-                else {
-                    ctx.lineWidth = bw;
-                    ctx.strokeStyle = options.grid.borderColor;
-                    ctx.strokeRect(-bw/2, -bw/2, plotWidth + bw, plotHeight + bw);
-                }
-            }            
-
-            // draw markings
-            var markings = options.grid.markings;
-            if (markings) {
-                if ($.isFunction(markings)) {
-                    axes = plot.getAxes();
-                    // xmin etc. is backwards compatibility, to be
-                    // removed in the future
-                    axes.xmin = axes.xaxis.min;
-                    axes.xmax = axes.xaxis.max;
-                    axes.ymin = axes.yaxis.min;
-                    axes.ymax = axes.yaxis.max;
-
-                    markings = markings(axes);
-                }
-
-                console.log(markings)
-                for (i = 0; i < markings.length; ++i) {
-                    var m = markings[i],
-                        xrange = extractRange(m, "x"),
-                        yrange = extractRange(m, "y");
-
-                    console.log(m.from);
-                    if (true) {
-    					console.log("marking: "+m.from);
-
-	                    // fill in missing
-	                    if (xrange.from == null)
-	                        xrange.from = xrange.axis.min;
-	                    if (xrange.to == null)
-	                        xrange.to = xrange.axis.max;
-	                    if (yrange.from == null)
-	                        yrange.from = yrange.axis.min;
-	                    if (yrange.to == null)
-	                        yrange.to = yrange.axis.max;
-
-	                    
-	                    yrange.from -= 10
-						yrange.to += 10
-
-	                    // clip
-	                    if (xrange.to < xrange.axis.min || xrange.from > xrange.axis.max ||
-	                        yrange.to < yrange.axis.min || yrange.from > yrange.axis.max)
-	                        continue;
-
-	                    xrange.from = Math.max(xrange.from, xrange.axis.min);
-	                    xrange.to = Math.min(xrange.to, xrange.axis.max);
-	                    yrange.from = Math.max(yrange.from, yrange.axis.min);
-	                    yrange.to = Math.min(yrange.to, yrange.axis.max);
-
-	                    var xequal = xrange.from === xrange.to,
-	                        yequal = yrange.from === yrange.to;
-
-	                    if (xequal && yequal) {
-	                        continue;
-	                    }
-
-	                    // then draw
-	                    xrange.from = Math.floor(xrange.axis.p2c(xrange.from));
-	                    xrange.to = Math.floor(xrange.axis.p2c(xrange.to));
-	                    yrange.from = Math.floor(yrange.axis.p2c(yrange.from));
-	                    yrange.to = Math.floor(yrange.axis.p2c(yrange.to));
-
-	                    if (xequal || yequal) {
-	                        var lineWidth = m.lineWidth || options.grid.markingsLineWidth,
-	                            subPixel = lineWidth % 2 ? 0.5 : 0;
-	                        ctx.beginPath();
-	                        ctx.strokeStyle = m.color || options.grid.markingsColor;
-	                        ctx.lineWidth = lineWidth;
-	                        if (xequal) {
-	                            ctx.moveTo(xrange.to + subPixel, yrange.from);
-	                            ctx.lineTo(xrange.to + subPixel, yrange.to);
-	                        } else {
-	                            ctx.moveTo(xrange.from, yrange.to + subPixel);
-	                            ctx.lineTo(xrange.to, yrange.to + subPixel);                            
-	                        }
-	                        ctx.stroke();
-	                    } else {
-	                        ctx.fillStyle = m.color || options.grid.markingsColor;
-	                        ctx.fillRect(xrange.from, yrange.to,
-	                                     xrange.to - xrange.from,
-	                                     yrange.from - yrange.to);
-	                    }
-	                }
-                }
-            }
+                  ctx.save();
+                  ctx.translate(plotOffset.left, plotOffset.top);       
 
             // draw the ticks
             axes = allAxes();
@@ -2180,11 +2081,148 @@ Licensed under the MIT license.
                             y = Math.floor(y) + 0.5;
                     }
 
-                    ctx.moveTo(x, y+10);
-                    ctx.lineTo(x + xoff, y + yoff);
+                    if (axis.direction == "x"){
+                      ctx.moveTo(x, y+gridOverflow);
+                      ctx.lineTo(x + xoff, y + yoff);}
+                    else{
+                      ctx.dashedLineTo(x, y, x+xoff, y+yoff, [2,1])
+                    }
                 }
 
                 ctx.stroke();
+            }
+
+            
+            // draw border
+            if (bw) {
+                // If either borderWidth or borderColor is an object, then draw the border
+                // line by line instead of as one rectangle
+
+                bc = options.grid.borderColor;
+
+                // if (typeof bw !== "object") {
+                //     bw = {top: bw, right: bw, bottom: bw, left: bw};
+                // }
+                // if (typeof bc !== "object") {
+                //     bc = {top: bc, right: bc, bottom: bc, left: bc};
+                // }
+
+                console.log(bc);
+
+                if (bw.top > 0) {
+                    ctx.strokeStyle = bc.top;
+                    ctx.lineWidth = bw.top;
+                    ctx.beginPath();                    
+                    ctx.dashedLineTo(0 - bw.left, 0 - bw.top/2, plotWidth, 0 - bw.top/2, [2,1]);
+                    ctx.stroke();
+                }
+
+                if (bw.right > 0) {
+                    ctx.strokeStyle = bc.right;
+                    ctx.lineWidth = bw.right;
+                    ctx.beginPath();
+                    ctx.moveTo(plotWidth + bw.right / 2, 0 - bw.top);
+                    ctx.lineTo(plotWidth + bw.right / 2, plotHeight+gridOverflow);
+                    ctx.stroke();
+                }
+
+                if (bw.left > 0) {
+                    ctx.strokeStyle = bc.left;
+                    ctx.lineWidth = bw.left;
+                    ctx.beginPath();
+                    ctx.moveTo(0 - bw.left/2, plotHeight + bw.bottom + gridOverflow);
+                    ctx.lineTo(0- bw.left/2, 0);
+                    ctx.stroke();
+                }
+
+                if (bw.bottom > 0) {
+                    ctx.strokeStyle = bc.bottom;
+                    ctx.lineWidth = bw.bottom;
+                    ctx.beginPath();
+                    ctx.dashedLineTo(plotWidth + bw.right, plotHeight + bw.bottom / 2, -bw.left, plotHeight + bw.bottom / 2, [2,1]);
+                    ctx.stroke();
+                }                
+            }     
+
+            // draw markings
+            var markings = options.grid.markings;
+            if (markings) {
+                if ($.isFunction(markings)) {
+                    axes = plot.getAxes();
+                    // xmin etc. is backwards compatibility, to be
+                    // removed in the future
+                    axes.xmin = axes.xaxis.min;
+                    axes.xmax = axes.xaxis.max;
+                    axes.ymin = axes.yaxis.min;
+                    axes.ymax = axes.yaxis.max;
+
+                    markings = markings(axes);
+                }
+
+                for (i = 0; i < markings.length; ++i) {
+                    var m = markings[i],
+                        xrange = extractRange(m, "x"),
+                        yrange = extractRange(m, "y");
+                 
+                      // fill in missing
+                      if (xrange.from == null)
+                          xrange.from = xrange.axis.min;
+                      if (xrange.to == null)
+                          xrange.to = xrange.axis.max;
+                      if (yrange.from == null)
+                          yrange.from = yrange.axis.min;
+                      if (yrange.to == null)
+                          yrange.to = yrange.axis.max;
+
+                      // clip
+                      if (xrange.to < xrange.axis.min || xrange.from > xrange.axis.max ||
+                          yrange.to < yrange.axis.min || yrange.from > yrange.axis.max)
+                          continue;
+
+                      xrange.from = Math.max(xrange.from, xrange.axis.min);
+                      xrange.to = Math.min(xrange.to, xrange.axis.max);
+                      yrange.from = Math.max(yrange.from, yrange.axis.min);
+                      yrange.to = Math.min(yrange.to, yrange.axis.max);
+
+                      var xequal = xrange.from === xrange.to,
+                          yequal = yrange.from === yrange.to;
+
+                      if (xequal && yequal) {
+                          continue;
+                      }
+
+                      // then draw
+                      xrange.from = Math.floor(xrange.axis.p2c(xrange.from));
+                      xrange.to = Math.floor(xrange.axis.p2c(xrange.to));
+                      yrange.from = Math.floor(yrange.axis.p2c(yrange.from));
+                      yrange.to = Math.floor(yrange.axis.p2c(yrange.to));
+
+                      if (xequal || yequal) {
+                          var lineWidth = m.lineWidth || options.grid.markingsLineWidth,
+                              subPixel = lineWidth % 2 ? 0.5 : 0;
+                          ctx.beginPath();
+                          ctx.strokeStyle = m.color || options.grid.markingsColor;
+                          ctx.lineWidth = lineWidth;
+                          if (xequal) {
+                              ctx.moveTo(xrange.to + subPixel, yrange.from+gridOverflow);
+                              ctx.lineTo(xrange.to + subPixel, yrange.to-gridOverflow);
+                              ctx.stroke();
+                              //draw line to month name
+                              ctx.moveTo(xrange.to + subPixel, yrange.from+gridOverflow*3);
+                              ctx.lineTo(xrange.to + subPixel, yrange.from+gridOverflow*4);
+                              ctx.stroke();
+                          } else {
+                              ctx.moveTo(xrange.from, yrange.to + subPixel);
+                              ctx.lineTo(xrange.to, yrange.to + subPixel);                            
+                              ctx.stroke();
+                          }
+                      } else {
+                          ctx.fillStyle = m.color || options.grid.markingsColor;
+                          ctx.fillRect(xrange.from, yrange.to,
+                                       xrange.to - xrange.from,
+                                       yrange.from - yrange.to);
+                      }
+                }
             }
 
             ctx.restore();
@@ -2756,7 +2794,7 @@ Licensed under the MIT license.
                 if ($.isFunction(options.legend.sorted)) {
                     entries.sort(options.legend.sorted);
                 } else if (options.legend.sorted == "reverse") {
-                	entries.reverse();
+                  entries.reverse();
                 } else {
                     var ascending = options.legend.sorted != "descending";
                     entries.sort(function(a, b) {
