@@ -2107,8 +2107,6 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
                 //     bc = {top: bc, right: bc, bottom: bc, left: bc};
                 // }
 
-                console.log(bc);
-
                 if (bw.top > 0) {
                     ctx.strokeStyle = bc.top;
                     ctx.lineWidth = bw.top;
