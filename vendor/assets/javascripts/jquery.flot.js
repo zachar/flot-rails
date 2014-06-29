@@ -1306,6 +1306,7 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
                 if (s.bars.show) {
                     // make sure we got room for the bar on the dancing floor
                     var delta;
+                    console.log('drawing bars');
 
                     switch (s.bars.align) {
                         case "left":
@@ -1984,7 +1985,7 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
         }
 
         function drawGrid() {
-            var i, axes, bw, bc, gridOverflow = 10;
+            var i, axes, bw, bc, gridOverflow = options.grid.overflow;
 
             bw = options.grid.borderWidth;
 
@@ -2058,7 +2059,6 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
                             && ((typeof bw == "object" && bw[axis.position] > 0) || bw > 0)
                             && (v == axis.min || v == axis.max)))
                         continue;
-
                     if (axis.direction == "x") {
                         x = axis.p2c(v);
                         yoff = t == "full" ? -plotHeight : t;
@@ -2073,14 +2073,12 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
                         if (axis.position == "left")
                             xoff = -xoff;
                     }
-
                     if (ctx.lineWidth == 1) {
                         if (axis.direction == "x")
                             x = Math.floor(x) + 0.5;
                         else
                             y = Math.floor(y) + 0.5;
                     }
-
                     if (axis.direction == "x"){
                       ctx.moveTo(x, y+gridOverflow);
                       ctx.lineTo(x + xoff, y + yoff);}
@@ -2088,10 +2086,8 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
                       ctx.dashedLineTo(x, y, x+xoff, y+yoff, [2,1])
                     }
                 }
-
                 ctx.stroke();
             }
-
             
             // draw border
             if (bw) {
@@ -2100,12 +2096,12 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
 
                 bc = options.grid.borderColor;
 
-                // if (typeof bw !== "object") {
-                //     bw = {top: bw, right: bw, bottom: bw, left: bw};
-                // }
-                // if (typeof bc !== "object") {
-                //     bc = {top: bc, right: bc, bottom: bc, left: bc};
-                // }
+                if (typeof bw !== "object") {
+                    bw = {top: bw, right: bw, bottom: bw, left: bw};
+                }
+                if (typeof bc !== "object") {
+                    bc = {top: bc, right: bc, bottom: bc, left: bc};
+                }
 
                 if (bw.top > 0) {
                     ctx.strokeStyle = bc.top;
@@ -2202,16 +2198,18 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
                           ctx.strokeStyle = m.color || options.grid.markingsColor;
                           ctx.lineWidth = lineWidth;
                           if (xequal) {
-                              ctx.moveTo(xrange.to + subPixel, yrange.from+gridOverflow);
-                              ctx.lineTo(xrange.to + subPixel, yrange.to-gridOverflow);
+                              ctx.moveTo(xrange.to + subPixel, yrange.from+options.grid.markingsOverflow.bottom);
+                              ctx.lineTo(xrange.to + subPixel, yrange.to-options.grid.markingsOverflow.top);
                               ctx.stroke();
                               //draw line to month name
-                              ctx.moveTo(xrange.to + subPixel, yrange.from+gridOverflow*3);
-                              ctx.lineTo(xrange.to + subPixel, yrange.from+gridOverflow*4);
-                              ctx.stroke();
+                              if (options.grid.monthMarkings == true) {
+                                ctx.moveTo(xrange.to + subPixel, yrange.from+options.grid.markingsOverflow.bottom*3);
+                                ctx.lineTo(xrange.to + subPixel, yrange.from+options.grid.markingsOverflow.bottom*4);
+                                ctx.stroke();
+                              }
                           } else {
                               ctx.moveTo(xrange.from, yrange.to + subPixel);
-                              ctx.lineTo(xrange.to, yrange.to + subPixel);                            
+                              ctx.lineTo(xrange.to, yrange.to + subPixel);
                               ctx.stroke();
                           }
                       } else {
@@ -2606,6 +2604,10 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
                 drawLeft, drawRight, drawTop, drawBottom,
                 tmp;
 
+            if (typeof lineWidth == 'number') {
+              lineWidth = {top: lineWidth, left: lineWidth, right: lineWidth, bottom: lineWidth}
+            }
+
             // in horizontal mode, we start the bar from the left
             // instead of from the bottom so it appears to be
             // horizontal rather than vertical
@@ -2681,24 +2683,24 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
             }
 
             // draw outline
-            if (lineWidth > 0 && (drawLeft || drawRight || drawTop || drawBottom)) {
+            if (drawLeft || drawRight || drawTop || drawBottom) {
                 c.beginPath();
 
                 // FIXME: inline moveTo is buggy with excanvas
                 c.moveTo(left, bottom);
-                if (drawLeft)
+                if (drawLeft && lineWidth.left > 0)
                     c.lineTo(left, top);
                 else
                     c.moveTo(left, top);
-                if (drawTop)
+                if (drawTop && lineWidth.top > 0)
                     c.lineTo(right, top);
                 else
                     c.moveTo(right, top);
-                if (drawRight)
+                if (drawRight && lineWidth.right > 0)
                     c.lineTo(right, bottom);
                 else
                     c.moveTo(right, bottom);
-                if (drawBottom)
+                if (drawBottom && lineWidth.bottom > 0)
                     c.lineTo(left, bottom);
                 else
                     c.moveTo(left, bottom);
