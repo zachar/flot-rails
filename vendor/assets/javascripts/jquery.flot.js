@@ -3268,8 +3268,21 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
 
         function drawPointHighlight(series, point) {
             var x = point[0], y = point[1],
-                axisx = series.xaxis, axisy = series.yaxis,
-                highlightColor = (typeof series.highlightColor === "string") ? series.highlightColor : $.color.parse(series.color).scale('a', 0.5).toString();
+                axisx = series.xaxis, axisy = series.yaxis;
+
+            if (typeof series.originSeries == 'undefined'){
+              var hlColor = series.highlightColor;
+              var color = series.color;
+            } else if (y < series.originSeries.threshold.below){
+              var hlColor = series.highlightColor;
+              var color = series.color;
+            } else {
+              var hlColor = series.originSeries.highlightColor;
+              var color = series.originSeries.color;
+            }
+
+            var highlightColor = (typeof hlColor === "string") ? hlColor : $.color.parse(color).scale('a', 0.5).toString();
+
 
             if (x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
                 return;
