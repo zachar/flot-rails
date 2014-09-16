@@ -753,7 +753,6 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
         draw();
         bindEvents();
 
-
         function executeHooks(hook, args) {
             args = [plot].concat(args);
             for (var i = 0; i < hook.length; ++i)
@@ -1306,8 +1305,6 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
                 if (s.bars.show) {
                     // make sure we got room for the bar on the dancing floor
                     var delta;
-                    console.log('drawing bars');
-
                     switch (s.bars.align) {
                         case "left":
                             delta = 0;
@@ -1923,8 +1920,15 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
             }
 
             for (var i = 0; i < series.length; ++i) {
+            // for (var i = series.length-1; i >= 0; --i) {  
                 executeHooks(hooks.drawSeries, [ctx, series[i]]);
+                // drawSeriesPoints(series[i]);
                 drawSeries(series[i]);
+            }
+
+            for (var i = series.length-1; i >= 0; --i) {  
+                executeHooks(hooks.drawSeries, [ctx, series[i]]);
+                drawPointsForSeries(series[i]);
             }
 
             executeHooks(hooks.draw, [ctx]);
@@ -1999,7 +2003,7 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
             for (var j = 0; j < axes.length; ++j) {
                 var axis = axes[j], box = axis.box,
                     t = axis.tickLength, x, y, xoff, yoff;
-                if (!axis.show || axis.ticks.length == 0)
+                if (!axis.show || axis.ticks.length == 0 || axis.tickLength == '0')
                     continue;
 
                 ctx.lineWidth = 1;
@@ -2278,6 +2282,9 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
                 drawSeriesLines(series);
             if (series.bars.show)
                 drawSeriesBars(series);
+        }
+
+        function drawPointsForSeries(series) {
             if (series.points.show)
                 drawSeriesPoints(series);
         }
@@ -2363,7 +2370,10 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
                 ctx.stroke();
             }
 
-            function plotLineArea(datapoints, axisx, axisy) {
+            function plotLineArea(series) {
+
+                var datapoints=series.datapoints, axisx=series.xaxis, axisy=series.yaxis;
+
                 var points = datapoints.points,
                     ps = datapoints.pointsize,
                     bottom = Math.min(Math.max(0, axisy.min), axisy.max),
@@ -2525,10 +2535,17 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
 
             ctx.lineWidth = lw;
             ctx.strokeStyle = series.color;
-            var fillStyle = getFillStyle(series.lines, series.color, 0, plotHeight);
+            
+            if (typeof series.originSeries === 'undefined')
+              threshold = false 
+            else
+              threshold = series.originSeries.threshold;
+              
+
+            var fillStyle = getFillStyle(series.lines, series.color, 0, plotHeight, threshold);
             if (fillStyle) {
                 ctx.fillStyle = fillStyle;
-                plotLineArea(series.datapoints, series.xaxis, series.yaxis);
+                plotLineArea(series);
             }
 
             if (lw > 0)
@@ -2536,68 +2553,197 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
             ctx.restore();
         }
 
+        // 
+        // ORIGINAL DRAW SERIES POINTS:
+        // 
+
+        // function drawSeriesPoints(series) {
+        //     function plotPoints(datapoints, radius, fillStyle, offset, shadow, axisx, axisy, symbol) {
+        //         var points = datapoints.points, ps = datapoints.pointsize;
+
+        //         for (var i = 0; i < points.length; i += ps) {
+        //             var x = points[i], y = points[i + 1];
+        //             if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
+        //                 continue;
+
+        //             ctx.beginPath();
+        //             x = axisx.p2c(x);
+        //             y = axisy.p2c(y) + offset;
+        //             if (symbol == "circle")
+        //                 ctx.arc(x, y, radius, 0, shadow ? Math.PI : Math.PI * 2, false);
+        //             else
+        //                 symbol(ctx, x, y, radius, shadow);
+        //             ctx.closePath();
+
+        //             if (fillStyle) {
+        //                 ctx.fillStyle = fillStyle;
+        //                 ctx.fill();
+        //             }
+        //             ctx.stroke();
+        //         }
+        //     }
+
+        //     ctx.save();
+        //     ctx.translate(plotOffset.left, plotOffset.top);
+
+        //     var lw = series.points.lineWidth,
+        //         sw = series.shadowSize,
+        //         radius = series.points.radius,
+        //         symbol = series.points.symbol;
+
+        //     // If the user sets the line width to 0, we change it to a very 
+        //     // small value. A line width of 0 seems to force the default of 1.
+        //     // Doing the conditional here allows the shadow setting to still be 
+        //     // optional even with a lineWidth of 0.
+
+        //     if( lw == 0 )
+        //         lw = 0.0001;
+
+        //     if (lw > 0 && sw > 0) {
+        //         // draw shadow in two steps
+        //         var w = sw / 2;
+        //         ctx.lineWidth = w;
+        //         ctx.strokeStyle = "rgba(0,0,0,0.1)";
+        //         plotPoints(series.datapoints, radius, null, w + w/2, true,
+        //                    series.xaxis, series.yaxis, symbol);
+
+        //         ctx.strokeStyle = "rgba(0,0,0,0.2)";
+        //         plotPoints(series.datapoints, radius, null, w/2, true,
+        //                    series.xaxis, series.yaxis, symbol);
+        //     }
+
+        //     ctx.lineWidth = lw;
+        //     ctx.strokeStyle = series.color;
+        //     plotPoints(series.datapoints, radius,
+        //                getFillStyle(series.points, series.color), 0, false,
+        //                series.xaxis, series.yaxis, symbol);
+        //     ctx.restore();
+        // }
+
+
+
+        // 
+        // NEW DRAW SERIES POINTS FUNCTION 
+        // 
+
         function drawSeriesPoints(series) {
-            function plotPoints(datapoints, radius, fillStyle, offset, shadow, axisx, axisy, symbol) {
-                var points = datapoints.points, ps = datapoints.pointsize;
+          function plotPoints(datapoints, radius, fillStyle, offset, shadow, axisx, axisy, symbol) {
+            var data,
+                  thresholdBelow;
 
-                for (var i = 0; i < points.length; i += ps) {
-                    var x = points[i], y = points[i + 1];
-                    if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
-                        continue;
-
-                    ctx.beginPath();
-                    x = axisx.p2c(x);
-                    y = axisy.p2c(y) + offset;
-                    if (symbol == "circle")
-                        ctx.arc(x, y, radius, 0, shadow ? Math.PI : Math.PI * 2, false);
-                    else
-                        symbol(ctx, x, y, radius, shadow);
-                    ctx.closePath();
-
-                    if (fillStyle) {
-                        ctx.fillStyle = fillStyle;
-                        ctx.fill();
-                    }
-                    ctx.stroke();
-                }
+            if (series.originSeries) {
+              data = series.originSeries.data,
+                  thresholdBelow = series.originSeries.threshold.below,
+                  thresholdColor = series.originSeries.threshold.color;
+            }
+            else {
+              data = series.data;
             }
 
-            ctx.save();
-            ctx.translate(plotOffset.left, plotOffset.top);
+            var points = datapoints.points, ps = datapoints.pointsize;
 
-            var lw = series.points.lineWidth,
+            for (var i = 0; i < points.length; i += ps) {
+              var x = points[i],
+                    y = points[i + 1];
+
+              if (x == null || x < axisx.min || x > axisx.max || y < axisy.min || y > axisy.max)
+                continue;
+
+              if (i % 2 === 0) {
+                var isValid = false;
+
+                if (!thresholdBelow || y < thresholdBelow) {
+                  for (var j = 0; j < data.length; j++) {
+                    var value = data[j];
+
+                    if (x == value[0] && y == value[1]) {
+                      isValid = true;
+
+                      data = data.slice(j + 1);
+
+                      break;
+                    }
+                  };
+                }
+
+                if (!isValid) {
+                  continue;
+                }
+              }
+
+              ctx.beginPath();
+              xCanvas = axisx.p2c(x);
+              yCanvas = axisy.p2c(y) + offset;
+              if (symbol == "circle")
+                ctx.arc(xCanvas, yCanvas, radius, 0, shadow ? Math.PI : Math.PI * 2, false);
+              else
+                symbol(ctx, xCanvas, yCanvas, radius, shadow);
+              ctx.closePath();
+
+              if (fillStyle) {
+                // user treshold color to fill points if value is below
+                if (thresholdBelow && thresholdBelow > y)
+                  ctx.fillStyle = thresholdColor;
+                else
+                  ctx.fillStyle = fillStyle;
+                ctx.fill();
+              }
+              ctx.stroke();
+            }
+          }
+
+          ctx.save();
+          ctx.translate(plotOffset.left, plotOffset.top);
+
+          var lw = series.points.lineWidth,
                 sw = series.shadowSize,
                 radius = series.points.radius,
-                symbol = series.points.symbol;
+                symbol = series.points.symbol,
+                datapoints = series.datapoints;
 
-            // If the user sets the line width to 0, we change it to a very 
-            // small value. A line width of 0 seems to force the default of 1.
-            // Doing the conditional here allows the shadow setting to still be 
-            // optional even with a lineWidth of 0.
+          // Check if threshold exists and series goes below threshold
+          if (typeof series.originSeries !== 'undefined' || series.threshold !== null){
+                      ps = series.datapoints.pointsize; xTickValues = _.pluck(series.xaxis.ticks, 'v'); dps = [];
+                      for (var i = 0; i < series.datapoints.points.length; i += ps) {
+                        if (_.contains(xTickValues, series.datapoints.points[i]))
+                          dps.push([series.datapoints.points[i], series.datapoints.points[i+1], series.datapoints.points[i+2]]);
+                      }
 
-            if( lw == 0 )
-                lw = 0.0001;
+                      datapoints.points = _.flatten(dps);
+          }
 
-            if (lw > 0 && sw > 0) {
-                // draw shadow in two steps
-                var w = sw / 2;
-                ctx.lineWidth = w;
-                ctx.strokeStyle = "rgba(0,0,0,0.1)";
-                plotPoints(series.datapoints, radius, null, w + w/2, true,
-                           series.xaxis, series.yaxis, symbol);
+          if (lw > 0 && sw > 0) {
+            // draw shadow in two steps
+            var w = sw / 2;
+            ctx.lineWidth = w;
+            ctx.strokeStyle = "rgba(0,0,0,0.1)";
+            plotPoints(datapoints, radius, null, w + w / 2, true,
+                      series.xaxis, series.yaxis, symbol);
 
-                ctx.strokeStyle = "rgba(0,0,0,0.2)";
-                plotPoints(series.datapoints, radius, null, w/2, true,
-                           series.xaxis, series.yaxis, symbol);
-            }
+            ctx.strokeStyle = "rgba(0,0,0,0.2)";
 
-            ctx.lineWidth = lw;
-            ctx.strokeStyle = series.color;
-            plotPoints(series.datapoints, radius,
-                       getFillStyle(series.points, series.color), 0, false,
-                       series.xaxis, series.yaxis, symbol);
-            ctx.restore();
+            plotPoints(datapoints, radius, null, w / 2, true,
+                      series.xaxis, series.yaxis, symbol);
+          }
+
+          ctx.lineWidth = lw;
+          ctx.strokeStyle = series.color;
+          plotPoints(datapoints, radius,
+                    getFillStyle(series.points, series.color), 0, false,
+                    series.xaxis, series.yaxis, symbol);
+          ctx.restore();
         }
+
+        // 
+        // END
+        // 
+
+
+
+
+
+
+
 
         function drawBar(x, y, b, barLeft, barRight, fillStyleCallback, axisx, axisy, c, horizontal, lineWidth) {
             var left, right, bottom, top,
@@ -2744,14 +2890,20 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
             ctx.restore();
         }
 
-        function getFillStyle(filloptions, seriesColor, bottom, top) {
+        function getFillStyle(filloptions, seriesColor, bottom, top, threshold) {
+            threshold = typeof threshold !== 'undefined' ? threshold : false;
             var fill = filloptions.fill;
             if (!fill)
                 return null;
+            if (threshold) {
+              var c = $.color.parse(threshold.color);
+              c.a = typeof fill == "number" ? fill : 0.3;
+              c.normalize();
+              return c.toString();
+            }
 
             if (filloptions.fillColor)
-                return getColorOrGradient(filloptions.fillColor, bottom, top, seriesColor);
-
+              return getColorOrGradient(filloptions.fillColor, bottom, top, seriesColor);
             var c = $.color.parse(seriesColor);
             c.a = typeof fill == "number" ? fill : 0.4;
             c.normalize();
