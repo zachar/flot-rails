@@ -1922,14 +1922,16 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
             for (var i = 0; i < series.length; ++i) {
             // for (var i = series.length-1; i >= 0; --i) {  
                 executeHooks(hooks.drawSeries, [ctx, series[i]]);
-                // drawSeriesPoints(series[i]);
                 drawSeries(series[i]);
+                // drawSeriesPoints(series[i]);
+                drawPointsForSeries(series[i]);
+
             }
 
-            for (var i = series.length-1; i >= 0; --i) {  
-                executeHooks(hooks.drawSeries, [ctx, series[i]]);
-                drawPointsForSeries(series[i]);
-            }
+            // for (var i = series.length-1; i >= 0; --i) {  
+            //     executeHooks(hooks.drawSeries, [ctx, series[i]]);
+            //     drawPointsForSeries(series[i]);
+            // }
 
             executeHooks(hooks.draw, [ctx]);
 
