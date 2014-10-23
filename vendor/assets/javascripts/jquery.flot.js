@@ -2960,7 +2960,6 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
             }
 
             // Generate markup for the list of entries, in their final order
-            console.log("entries");
             if(entries.length > 0)
             {
               var entryWidth = 100/(entries.length*2);
