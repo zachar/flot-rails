@@ -2960,22 +2960,26 @@ CanvasRenderingContext2D.prototype.dashedLineTo = function (fromX, fromY, toX, t
             }
 
             // Generate markup for the list of entries, in their final order
+            console.log("entries");
+            if(entries.length > 0)
+            {
+              var entryWidth = 100/(entries.length*2);
+              for (var i = 0; i < entries.length; ++i) {
 
-            for (var i = 0; i < entries.length; ++i) {
+                  var entry = entries[i];
 
-                var entry = entries[i];
+                  if (i % options.legend.noColumns == 0) {
+                      if (rowStarted)
+                          fragments.push('</tr>');
+                      fragments.push('<tr>');
+                      rowStarted = true;
+                  }
 
-                if (i % options.legend.noColumns == 0) {
-                    if (rowStarted)
-                        fragments.push('</tr>');
-                    fragments.push('<tr>');
-                    rowStarted = true;
-                }
-
-                fragments.push(
-                    '<td class="legendColorBox"><div style="border:1px solid ' + options.legend.labelBoxBorderColor + ';padding:1px"><div style="width:4px;height:0;border:5px solid ' + entry.color + ';overflow:hidden"></div></div></td>' +
-                    '<td class="legendLabel">' + entry.label + '</td>'
-                );
+                  fragments.push(
+                      '<td class="legendColorBox" style="width:' + entryWidth + '%;float:right;"><div style="border:1px solid ' + options.legend.labelBoxBorderColor + ';padding:1px;float:right;"><div style="width:4px;height:0;border:5px solid ' + entry.color + ';overflow:hidden"></div></div></td>' +
+                      '<td class="legendLabel" style="width:' + entryWidth + '%;text-align:left;">' + entry.label + '</td>'
+                  );
+              }
             }
 
             if (rowStarted)
